@@ -1,4 +1,5 @@
 #lang info
+(define install-collection "installer.rkt")
 (define collection "racket-mupdf")
 (define deps '("base"))
 (define build-deps '("scribble-lib" "racket-doc" "rackunit-lib"))
