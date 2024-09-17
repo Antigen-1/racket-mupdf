@@ -3,7 +3,6 @@
 (provide installer)
 
 (define (installer _ root)
-  (let ((ret (system* "cc" "-lm" "-lmupdf" "-shared" "-fPIC" "-o"
-                      (build-path root "libpdf.so")
-                      (build-path root "pdf.c"))))
-    (if ret (void) (raise-user-error "Fail to build the shared object."))))
+  (parameterize ((current-directory root))
+    (let ((ret (system "cc -lm -lmupdf -fPIC -shared pdf.c -o libpdf.so" #:set-pwd? #t)))
+      (if ret (void) (raise-user-error "Fail to build the shared object.")))))
