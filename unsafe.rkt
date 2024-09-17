@@ -1,13 +1,25 @@
 #lang racket/base
 (require ffi/unsafe ffi/unsafe/define ffi/unsafe/alloc
          racket/runtime-path racket/draw racket/class
+         (except-in racket/contract ->)
+         (rename-in racket/contract (-> n:->))
          "exn.rkt")
 (provide make-context
-         open-document
-         document-count-pages
-         make-matrix
-         extract-pixmap
-         pixmap->bitmap)
+         (contract-out
+          (make-matrix (n:-> flonum? flonum? flonum? any))
+          (document-count-pages (n:-> mupdf-document? any))
+          (open-document (n:-> mupdf-context? path-string? any))
+          (extract-pixmap (->i ((doc mupdf-document?)
+                                (page-num exact-nonnegative-integer?)
+                                (ctx fz_matrix?))
+                               ()
+                               #:pre (doc page-num) (> (document-count-pages doc) page-num)
+                               any))
+          (pixmap->bitmap (->* (mupdf-pixmap?) (#:alpha? boolean?) any)))
+         mupdf-context?
+         mupdf-document?
+         mupdf-pixmap?
+         (rename-out (fz_matrix? mupdf-matrix?)))
 
 (define-runtime-path libpdf "libpdf.so")
 
@@ -22,7 +34,7 @@
 
 (struct mupdf-context (ctx))
 (struct mupdf-document mupdf-context (doc))
-(struct mupdf-pixmap mupdf-document (pix))
+(struct mupdf-pixmap mupdf-context (pix))
 
 (define (check-pointer ptr str)
   (if ptr
@@ -104,7 +116,7 @@
     (lambda (pn)
       (define c (mupdf-context-ctx doc))
       (define d (mupdf-document-doc doc))
-      (mupdf-pixmap c d (mupdf_new_rgb_pixmap_from_page_number c d pn mtx))))
+      (mupdf-pixmap c (mupdf_new_rgb_pixmap_from_page_number c d pn mtx))))
    pgn))
 (define (pixmap->bitmap wp #:alpha? (a? #t))
   (let* ((pix (mupdf-pixmap-pix wp))

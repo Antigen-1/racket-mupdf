@@ -1,3 +1,3 @@
 racket-mupdf
 ============
-README text here.
+Racket version of MuPDF C API.
