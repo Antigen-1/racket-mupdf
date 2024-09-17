@@ -1,20 +1,13 @@
 #include "mupdf/fitz.h"
-#include <stdlib.h>
-#include <stdbool.h>
-#include <string.h>
 
 #define FAIL -1
 #define SUCC 0
 
-typedef struct{
-  int x, y;
-} offset;
-
-extern fz_context* mupdf_new_context(){
+fz_context* mupdf_new_context(){
   return fz_new_context(NULL, NULL, FZ_STORE_UNLIMITED);
 }
 
-extern int mupdf_register_type_handlers(fz_context* ctx){
+int mupdf_register_type_handlers(fz_context* ctx){
   fz_try(ctx)
         fz_register_document_handlers(ctx);
   fz_catch(ctx){
@@ -23,12 +16,12 @@ extern int mupdf_register_type_handlers(fz_context* ctx){
   return SUCC;
 }
 
-extern void mupdf_drop_context(fz_context* ctx){
+void mupdf_drop_context(fz_context* ctx){
   fz_drop_context(ctx);
 }
 
-extern fz_document* mupdf_open_document(fz_context* ctx, unsigned char* input){
-  fz_document* doc;
+fz_document* mupdf_open_document(fz_context* ctx, unsigned char* input){
+  fz_document* doc = NULL;
   fz_try(ctx)
     doc=fz_open_document(ctx, input);
   fz_catch(ctx){
@@ -37,11 +30,11 @@ extern fz_document* mupdf_open_document(fz_context* ctx, unsigned char* input){
   return doc;
 }
 
-extern void mupdf_drop_document(fz_context* ctx, fz_document* doc){
+void mupdf_drop_document(fz_context* ctx, fz_document* doc){
   fz_drop_document(ctx, doc);
 }
 
-extern int mupdf_count_pages(fz_context* ctx, fz_document* doc){
+int mupdf_count_pages(fz_context* ctx, fz_document* doc){
   int page_count;
   fz_try(ctx)
     page_count = fz_count_pages(ctx, doc);
@@ -52,15 +45,13 @@ extern int mupdf_count_pages(fz_context* ctx, fz_document* doc){
   return page_count;
 }
 
-extern fz_matrix mupdf_new_matrix(float zm1, float zm2, float rt){
-  fz_matrix ctm;
-  fz_scale(zm1, zm2);
-  fz_pre_rotate(ctm, rt);
-  return ctm;
+fz_matrix mupdf_new_matrix(float zm1, float zm2, float rt){
+  fz_matrix ctm = fz_scale(zm1, zm2);
+  return fz_pre_rotate(ctm, rt);
 }
 
-extern fz_pixmap* mupdf_new_rgb_pixmap_from_page_number(fz_context* ctx, fz_document* doc, int page_number, fz_matrix ctm){
-  fz_pixmap* pix;
+fz_pixmap* mupdf_new_rgb_pixmap_from_page_number(fz_context* ctx, fz_document* doc, int page_number, fz_matrix ctm){
+  fz_pixmap* pix = NULL;
   fz_try(ctx)
     pix = fz_new_pixmap_from_page_number(ctx, doc, page_number, ctm, fz_device_rgb(ctx), 0);
   fz_catch(ctx)
@@ -70,46 +61,41 @@ extern fz_pixmap* mupdf_new_rgb_pixmap_from_page_number(fz_context* ctx, fz_docu
   return pix;
 }
 
-extern void mupdf_drop_pixmap(fz_context* ctx, fz_pixmap* pix){
+void mupdf_drop_pixmap(fz_context* ctx, fz_pixmap* pix){
   fz_drop_pixmap(ctx, pix);
 }
 
-extern bool mupdf_pixmap_alphap(fz_pixmap* pix){
-  if (pix->alpha)
-    return 1;
-  else
-    return 0;
+// Pixmap accessors
+int mupdf_pixmap_alpha_p(fz_pixmap* pix){
+  return pix->alpha;
 }
-
-extern offset mupdf_pixmap_offset(fz_pixmap* pix){
-  const offset ofs = {pix->x, pix->y};
-  return ofs;
+int mupdf_pixmap_w(fz_pixmap* pix){
+  return pix->w;
 }
-
-extern unsigned char* mupdf_extract_bytes_from_pixmap(fz_pixmap* pix){
-  int x, y;
-  bool alphap = mupdf_pixmap_alphap(pix);
-  size_t alpha_index = pix->n - 1;
-  int unit_len = alphap ? 4 : 3;
-  size_t length = unit_len * pix->w * pix->h;
-  unsigned char* s = (unsigned char*)malloc(length);
-  for (y = 0; y < pix->h; ++y)
-    {
-      unsigned char *p = &pix->samples[y * pix->stride];
-      for (x = 0; x < pix->w; ++x)
-        {
-          if (alphap){
-              s[0] = p[alpha_index];
-              s++;
-              memcpy(s, p, 3);
-            }
-          else{
-            memcpy(s, p, 3);
-          }
-          p += pix->n;
-          s += 3;
-        }
-    }
-  s -= length;
-  return s;
+int mupdf_pixmap_h(fz_pixmap* pix){
+  return pix->h;
+}
+int mupdf_pixmap_x(fz_pixmap* pix){
+  return pix->x;
+}
+int mupdf_pixmap_y(fz_pixmap* pix){
+  return pix->y;
+}
+int mupdf_pixmap_n(fz_pixmap* pix){
+  return pix->n;
+}
+int mupdf_pixmap_s(fz_pixmap* pix){
+  return pix->s;
+}
+int mupdf_pixmap_stride(fz_pixmap* pix){
+  return pix->stride;
+}
+int mupdf_pixmap_xres(fz_pixmap* pix){
+  return pix->xres;
+}
+int mupdf_pixmap_yres(fz_pixmap* pix){
+  return pix->yres;
+}
+unsigned char* mupdf_pixmap_samples(fz_pixmap* pix){
+  return pix->samples;
 }

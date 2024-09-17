@@ -1,16 +1,13 @@
 #lang racket/base
 (require ffi/unsafe ffi/unsafe/define ffi/unsafe/alloc
-         racket/runtime-path
+         racket/runtime-path racket/draw racket/class
          "exn.rkt")
 (provide make-context
          open-document
          document-count-pages
          make-matrix
          extract-pixmap
-         pixmap-has-alpha?
-         pixmap-offsets
-         pixmap->bytes
-         )
+         pixmap->bitmap)
 
 (define-runtime-path libpdf "libpdf.so")
 
@@ -22,7 +19,10 @@
 (define _fz_pixmap-pointer (_cpointer/null 'fz_pixmap))
 
 (define-cstruct _fz_matrix ([a _float] [b _float] [c _float] [d _float] [e _float] [f _float]))
-(define-cstruct _offset ([x _int] [y _int]))
+
+(struct mupdf-context (ctx))
+(struct mupdf-document mupdf-context (doc))
+(struct mupdf-pixmap mupdf-document (pix))
 
 (define (check-pointer ptr str)
   (if ptr
@@ -62,33 +62,75 @@
 (define-pdf-lib mupdf_drop_pixmap
   (_fun _fz_context-pointer _fz_pixmap-pointer
         -> _void))
-(define-pdf-lib mupdf_pixmap_alphap
-  (_fun _fz_pixmap-pointer -> _stdbool))
-(define-pdf-lib mupdf_pixmap_offset
-  (_fun _fz_pixmap-pointer -> _offset))
-(define-pdf-lib mupdf_extract_bytes_from_pixmap
-  (_fun _fz_pixmap-pointer -> _bytes))
+(define-pdf-lib mupdf_pixmap_alpha_p
+  (_fun _fz_pixmap-pointer -> _bool))
+(define-pdf-lib mupdf_pixmap_w
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_h
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_x
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_y
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_n
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_s
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_stride
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_xres
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_yres
+  (_fun _fz_pixmap-pointer -> _int))
+(define-pdf-lib mupdf_pixmap_samples
+  ;; _bytes cannot obtain all bytes it contains
+  (_fun _fz_pixmap-pointer -> _pointer))
 
 (define make-context
-  ((allocator mupdf_drop_context) (compose1 mupdf_register_type_handlers mupdf_new_context)))
+  ((allocator (compose1 mupdf_drop_context mupdf-context-ctx))
+   (compose1 mupdf-context mupdf_register_type_handlers mupdf_new_context)))
 (define (open-document ctx file)
-  (((allocator (lambda (doc) (mupdf_drop_document ctx doc)))
-    (lambda (f) (mupdf_open_document ctx f)))
+  (((allocator (lambda (doc) (mupdf_drop_document (mupdf-context-ctx doc) (mupdf-document-doc doc))))
+    (lambda (f)
+      (define c (mupdf-context-ctx ctx))
+      (mupdf-document c (mupdf_open_document c f))))
    file))
-(define (document-count-pages ctx doc)
-  (mupdf_count_pages ctx doc))
+(define (document-count-pages doc)
+  (mupdf_count_pages (mupdf-context-ctx doc) (mupdf-document-doc doc)))
 (define (make-matrix zm1 zm2 rt)
   (mupdf_new_matrix zm1 zm2 rt))
-(define (extract-pixmap ctx doc pgn mtx)
-  (((allocator (lambda (pix) (mupdf_drop_pixmap ctx pix)))
-    (lambda (pn) (mupdf_new_rgb_pixmap_from_page_number ctx doc pn mtx)))
+(define (extract-pixmap doc pgn mtx)
+  (((allocator (lambda (pix) (mupdf_drop_pixmap (mupdf-context-ctx pix) (mupdf-pixmap-pix pix))))
+    (lambda (pn)
+      (define c (mupdf-context-ctx doc))
+      (define d (mupdf-document-doc doc))
+      (mupdf-pixmap c d (mupdf_new_rgb_pixmap_from_page_number c d pn mtx))))
    pgn))
-(define (pixmap-has-alpha? pix)
-  (mupdf_pixmap_alphap pix))
-(define (pixmap-offsets pix)
-  (let ((ofs (mupdf_pixmap_offset pix)))
-    (values
-     (offset-x ofs)
-     (offset-y ofs))))
-(define pixmap->bytes
-  ((allocator free) mupdf_extract_bytes_from_pixmap))
+(define (pixmap->bitmap wp #:alpha? (a? #t))
+  (let* ((pix (mupdf-pixmap-pix wp))
+
+         (w (mupdf_pixmap_w pix))
+         (h (mupdf_pixmap_h pix))
+         (n (mupdf_pixmap_n pix))
+         (x (mupdf_pixmap_x pix))
+         (y (mupdf_pixmap_y pix))
+         (stride (mupdf_pixmap_stride pix))
+         (alpha? (and a? (mupdf_pixmap_alpha_p pix)))
+         (samples (mupdf_pixmap_samples pix))
+
+         (unit-len 4)
+         (bts (make-bytes (* unit-len w h)))
+         (bmp (make-object bitmap% (+ x w) (+ y h) #f alpha?)))
+    (for ((i (in-range 0 h)))
+      (define sample-base (* i stride))
+      (define result-base (* i unit-len w))
+      (for ((p (in-range 0 w)))
+        (define sample-rgb-base (+ sample-base (* p n)))
+        (define result-alpha-base (+ result-base (* p unit-len)))
+        (bytes-set! bts result-alpha-base
+                    (if alpha? (ptr-ref samples _byte (+ sample-rgb-base n -1)) 255))
+        (for ((o (in-range 0 3)))
+          (bytes-set! bts (+ result-alpha-base o 1)
+                      (ptr-ref samples _byte (+ sample-rgb-base o))))))
+    (send bmp set-argb-pixels x y w h bts)
+    bmp))
