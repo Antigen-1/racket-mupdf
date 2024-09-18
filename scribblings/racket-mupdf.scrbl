@@ -38,7 +38,7 @@ If the document has @racket[pg-num] or fewer pages, then the @racket[exn:fail:co
          exact-nonnegative-integer?]
 @defproc[#:kind "transformer"
          (pixmap->bitmap (pix mupdf-pixmap?))
-         (is-a/c bitmap%)]
+         (is-a?/c bitmap%)]
 @defproc[#:kind "predicate"
          (mupdf-context? (value any/c))
          boolean?]
