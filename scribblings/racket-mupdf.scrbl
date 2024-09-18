@@ -28,7 +28,7 @@ Currently this library only supports reading from PDF files. Allocated objects a
 @defproc[#:kind "constructor"
          (extract-pixmap (doc mupdf-document?) (pg-num exact-nonnegative-integer?) (ctm mupdf-matrix?))
          mupdf-pixmap?]{
-If the document has @italic{pg-num} or fewer pages, then the @racket[exn:fail:contract] exception is raised.
+If the document has @racket[pg-num] or fewer pages, then the @racket[exn:fail:contract] exception is raised.
 }
 @defproc[#:kind "constructor"
          (make-matrix (zoom1 flonum?) (zoom2 flonum?) (rotate flonum?))
