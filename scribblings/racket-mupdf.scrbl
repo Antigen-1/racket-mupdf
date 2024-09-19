@@ -23,11 +23,11 @@ Currently this library only supports reading from PDF files. Allocated objects a
          (make-context)
          mupdf-context?]
 @defproc[#:kind "constructor"
-         (open-document (ctx mupdf-context?) (file path-string?))
-         mupdf-document?]
+         (open-document (ctx mupdf-context?))
+         (-> path-string? mupdf-document?)]
 @defproc[#:kind "constructor"
-         (extract-pixmap (doc mupdf-document?) (pg-num exact-nonnegative-integer?) (ctm mupdf-matrix?))
-         mupdf-pixmap?]{
+         (extract-pixmap (doc mupdf-document?) (ctm mupdf-matrix?))
+         (-> exact-nonnegative-integer? mupdf-pixmap?)]{
 If the document has @racket[pg-num] or fewer pages, then the @racket[exn:fail:contract] exception is raised.
 }
 @defproc[#:kind "constructor"
