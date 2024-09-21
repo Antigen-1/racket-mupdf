@@ -1,7 +1,7 @@
 #lang info
 (define install-collection "installer.rkt")
 (define collection "racket-mupdf")
-(define deps '("base"))
+(define deps '("base" "draw-lib"))
 (define build-deps '("scribble-lib" "racket-doc" "rackunit-lib"))
 (define scribblings '(("scribblings/racket-mupdf.scrbl" ())))
 (define pkg-desc "Description Here")
