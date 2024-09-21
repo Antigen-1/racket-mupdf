@@ -1,5 +1,5 @@
 #lang racket/base
-(require ffi/unsafe ffi/unsafe/define ffi/unsafe/alloc
+(require ffi/unsafe ffi/unsafe/define ffi/unsafe/alloc ffi/vector
          racket/runtime-path racket/draw racket/class
          (except-in racket/contract ->)
          (rename-in racket/contract (-> n:->))
@@ -141,8 +141,7 @@
         (define result-alpha-base (+ result-base (* p unit-len)))
         (bytes-set! bts result-alpha-base
                     (if alpha? (ptr-ref samples _byte (+ sample-rgb-base n -1)) 255))
-        (for ((o (in-range 0 3)))
-          (bytes-set! bts (+ result-alpha-base o 1)
-                      (ptr-ref samples _byte (+ sample-rgb-base o))))))
+        (memcpy (u8vector->cpointer bts) (+ result-alpha-base 1)
+                samples sample-rgb-base 3 _byte)))
     (send bmp set-argb-pixels x y w h bts)
     bmp))
