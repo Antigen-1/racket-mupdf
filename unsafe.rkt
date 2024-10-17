@@ -18,10 +18,10 @@
                                        #:pre (page-num) (> (document-count-pages doc) page-num)
                                        any))))
           (pixmap->bitmap (->* (mupdf-pixmap?) (#:alpha? boolean?) any)))
-         mupdf-context?
          mupdf-document?
          mupdf-pixmap?
-         (rename-out (fz_matrix? mupdf-matrix?)))
+         (rename-out (n:mupdf-context? mupdf-context?)
+                     (fz_matrix? mupdf-matrix?)))
 
 (define-runtime-path libpdf "libpdf.so")
 
@@ -37,6 +37,11 @@
 (struct mupdf-context (ctx))
 (struct mupdf-document mupdf-context (doc))
 (struct mupdf-pixmap mupdf-context (pix))
+
+(define (n:mupdf-context? v)
+  (and (mupdf-context? v)
+       (not (mupdf-document? v))
+       (not (mupdf-pixmap? v))))
 
 (define (check-pointer ptr str)
   (if ptr
@@ -145,3 +150,7 @@
                 samples sample-rgb-base 3 _byte)))
     (send bmp set-argb-pixels x y w h bts)
     bmp))
+
+(module* test racket/base
+  (require (submod "..") rackunit)
+  (check-true (mupdf-context? (make-context))))
